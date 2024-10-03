@@ -25,8 +25,6 @@ from ldm.models.diffusion.ddim import DDIMSampler
 
 import ldm.models.diffusion.ddpm
 
-from modules import devices
-
 __conditioning_keys__ = {'concat': 'c_concat',
                          'crossattn': 'c_crossattn',
                          'adm': 'y'}
@@ -1395,26 +1393,25 @@ class DiffusionWrapperV1(pl.LightningModule):
         assert self.conditioning_key in [None, 'concat', 'crossattn', 'hybrid', 'adm']
 
     def forward(self, x, t, c_concat: list = None, c_crossattn: list = None):
-        with devices.autocast():
-            if self.conditioning_key is None:
-                out = self.diffusion_model(x, t)
-            elif self.conditioning_key == 'concat':
-                xc = torch.cat([x] + c_concat, dim=1)
-                out = self.diffusion_model(xc, t)
-            elif self.conditioning_key == 'crossattn':
-                cc = torch.cat(c_crossattn, 1)
-                out = self.diffusion_model(x, t, context=cc)
-            elif self.conditioning_key == 'hybrid':
-                xc = torch.cat([x] + c_concat, dim=1)
-                cc = torch.cat(c_crossattn, 1)
-                out = self.diffusion_model(xc, t, context=cc)
-            elif self.conditioning_key == 'adm':
-                cc = c_crossattn[0]
-                out = self.diffusion_model(x, t, y=cc)
-            else:
-                raise NotImplementedError()
+        if self.conditioning_key is None:
+            out = self.diffusion_model(x, t)
+        elif self.conditioning_key == 'concat':
+            xc = torch.cat([x] + c_concat, dim=1)
+            out = self.diffusion_model(xc, t)
+        elif self.conditioning_key == 'crossattn':
+            cc = torch.cat(c_crossattn, 1)
+            out = self.diffusion_model(x, t, context=cc)
+        elif self.conditioning_key == 'hybrid':
+            xc = torch.cat([x] + c_concat, dim=1)
+            cc = torch.cat(c_crossattn, 1)
+            out = self.diffusion_model(xc, t, context=cc)
+        elif self.conditioning_key == 'adm':
+            cc = c_crossattn[0]
+            out = self.diffusion_model(x, t, y=cc)
+        else:
+            raise NotImplementedError()
 
-            return out
+        return out
 
 
 class Layout2ImgDiffusionV1(LatentDiffusionV1):
